@@ -17,6 +17,191 @@ const config = {
     }
 };
 
+// Score Manager Module
+const ScoreManager = {
+    STORAGE_KEY: 'kiroworld_highscore',
+    
+    saveScore(score) {
+        try {
+            localStorage.setItem(this.STORAGE_KEY, score.toString());
+            console.log('Saved score to LocalStorage:', score);
+        } catch (e) {
+            console.warn('Failed to save score to LocalStorage:', e);
+        }
+    },
+    
+    loadHighScore() {
+        try {
+            const saved = localStorage.getItem(this.STORAGE_KEY);
+            return saved ? parseInt(saved, 10) : 0;
+        } catch (e) {
+            console.warn('Failed to load high score from LocalStorage:', e);
+            return 0;
+        }
+    },
+    
+    updateHighScore(newScore) {
+        const currentHigh = this.loadHighScore();
+        if (newScore > currentHigh) {
+            this.saveScore(newScore);
+            return true;
+        }
+        return false;
+    },
+    
+    isNewHighScore(score) {
+        return score > this.loadHighScore();
+    }
+};
+
+// Particle System Module
+const ParticleSystem = {
+    particles: [],
+    
+    // Create a trail particle
+    createTrail(x, y, velocityX, velocityY) {
+        this.particles.push({
+            x: x,
+            y: y,
+            velocityX: velocityX * 0.3 + (Math.random() - 0.5) * 2,
+            velocityY: velocityY * 0.3 + (Math.random() - 0.5) * 2,
+            life: 1,
+            maxLife: 20,
+            size: 4 + Math.random() * 4,
+            color: '#790ECB',
+            type: 'trail'
+        });
+    },
+    
+    // Create an explosion effect
+    createExplosion(x, y, count = 15) {
+        for (let i = 0; i < count; i++) {
+            const angle = (Math.PI * 2 * i) / count;
+            const speed = 2 + Math.random() * 3;
+            this.particles.push({
+                x: x,
+                y: y,
+                velocityX: Math.cos(angle) * speed,
+                velocityY: Math.sin(angle) * speed,
+                life: 1,
+                maxLife: 30,
+                size: 3 + Math.random() * 5,
+                color: ['#790ECB', '#FFD700', '#FF6B6B'][Math.floor(Math.random() * 3)],
+                type: 'explosion'
+            });
+        }
+    },
+    
+    // Create a sparkle effect
+    createSparkle(x, y) {
+        const count = 10;
+        for (let i = 0; i < count; i++) {
+            const angle = (Math.PI * 2 * i) / count;
+            const speed = 1 + Math.random() * 2;
+            this.particles.push({
+                x: x,
+                y: y,
+                velocityX: Math.cos(angle) * speed,
+                velocityY: Math.sin(angle) * speed,
+                life: 1,
+                maxLife: 25,
+                size: 2 + Math.random() * 4,
+                color: '#FFD700',
+                type: 'sparkle'
+            });
+        }
+    },
+    
+    // Create confetti effect
+    createConfetti() {
+        const count = 100;
+        const colors = ['#790ECB', '#FFD700', '#FF6B6B', '#4ECDC4', '#95E1D3'];
+        // Spawn confetti across the visible screen area in world coordinates
+        for (let i = 0; i < count; i++) {
+            this.particles.push({
+                x: Math.random() * config.canvas.width + game.camera.x,
+                y: -20 - Math.random() * 100,
+                velocityX: (Math.random() - 0.5) * 4,
+                velocityY: Math.random() * 2 + 1,
+                life: 1,
+                maxLife: 120,
+                size: 4 + Math.random() * 6,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                rotation: Math.random() * Math.PI * 2,
+                rotationSpeed: (Math.random() - 0.5) * 0.2,
+                type: 'confetti'
+            });
+        }
+    },
+    
+    // Update all particles
+    update() {
+        for (let i = 0; i < this.particles.length; i++) {
+            const p = this.particles[i];
+            
+            // Update position
+            p.x += p.velocityX;
+            p.y += p.velocityY;
+            
+            // Apply physics based on particle type
+            if (p.type === 'explosion' || p.type === 'confetti') {
+                p.velocityY += 0.15; // Gravity
+            }
+            
+            // Update rotation for confetti
+            if (p.type === 'confetti' && p.rotation !== undefined) {
+                p.rotation += p.rotationSpeed;
+            }
+            
+            // Decrease life
+            p.life -= 1 / p.maxLife;
+            
+            // Fade velocity for trail particles
+            if (p.type === 'trail') {
+                p.velocityX *= 0.95;
+                p.velocityY *= 0.95;
+            }
+        }
+    },
+    
+    // Render all particles
+    render(ctx, cameraX) {
+        ctx.save();
+        
+        for (let i = 0; i < this.particles.length; i++) {
+            const p = this.particles[i];
+            
+            // Calculate opacity based on life
+            const opacity = Math.max(0, p.life);
+            
+            ctx.globalAlpha = opacity;
+            ctx.fillStyle = p.color;
+            
+            // Draw particle with camera offset
+            if (p.type === 'confetti' && p.rotation !== undefined) {
+                // Draw rotated rectangle for confetti
+                ctx.save();
+                ctx.translate(p.x - cameraX, p.y);
+                ctx.rotate(p.rotation);
+                ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 1.5);
+                ctx.restore();
+            } else {
+                // Draw circle for other particles
+                ctx.beginPath();
+                ctx.arc(p.x - cameraX, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        ctx.restore();
+    },
+    
+    // Remove dead particles
+    cleanup() {
+        this.particles = this.particles.filter(p => p.life > 0);
+    }
+};
+
 // Game State
 const game = {
     canvas: null,
@@ -25,7 +210,11 @@ const game = {
     lives: 3,
     level: 1,
     isRunning: false,
-    camera: { x: 0, targetX: 0 }
+    camera: { x: 0, targetX: 0 },
+    highScore: 0,
+    particles: [],
+    lastTrailSpawn: 0,
+    frameCount: 0
 };
 
 // Player Object
@@ -54,6 +243,10 @@ function init() {
     game.canvas.width = config.canvas.width;
     game.canvas.height = config.canvas.height;
 
+    // Load high score from LocalStorage
+    game.highScore = ScoreManager.loadHighScore();
+    console.log('Loaded high score from LocalStorage:', game.highScore);
+
     // Load player sprite
     player.image = new Image();
     player.image.src = 'kiro-logo.png';
@@ -76,6 +269,7 @@ function init() {
     // Start game
     loadLevel(game.level);
     game.isRunning = true;
+    updateHUD();
     gameLoop();
 }
 
@@ -175,6 +369,8 @@ function loadLevel(levelNum) {
 function update() {
     if (!game.isRunning) return;
 
+    game.frameCount++;
+
     // Player input
     if (keys['ArrowLeft'] || keys['KeyA']) {
         player.velocityX = -config.player.speed;
@@ -196,6 +392,24 @@ function update() {
     // Update position
     player.x += player.velocityX;
     player.y += player.velocityY;
+
+    // Create trail particles when player is moving
+    const isMoving = Math.abs(player.velocityX) > 0.5 || Math.abs(player.velocityY) > 0.5;
+    const trailSpawnRate = player.isGrounded ? 3 : 2; // Higher frequency when airborne
+    
+    if (isMoving && game.frameCount - game.lastTrailSpawn >= trailSpawnRate) {
+        // Limit trail particles to 50
+        const trailCount = ParticleSystem.particles.filter(p => p.type === 'trail').length;
+        if (trailCount < 50) {
+            ParticleSystem.createTrail(
+                player.x + player.width / 2,
+                player.y + player.height / 2,
+                player.velocityX,
+                player.velocityY
+            );
+        }
+        game.lastTrailSpawn = game.frameCount;
+    }
 
     // Check platform collisions
     player.isGrounded = false;
@@ -219,8 +433,15 @@ function update() {
                 player.y = platform.y + platform.height;
                 player.velocityY = 0;
             }
-            // Horizontal collision
+            // Horizontal collision (side impact)
             else {
+                // Trigger explosion effect on side collision
+                ParticleSystem.createExplosion(
+                    player.x + player.width / 2,
+                    player.y + player.height / 2,
+                    15
+                );
+                
                 if (player.velocityX > 0) {
                     player.x = platform.x - player.width;
                 } else if (player.velocityX < 0) {
@@ -235,7 +456,27 @@ function update() {
     collectibles.forEach(collectible => {
         if (!collectible.collected && checkCollision(player, collectible)) {
             collectible.collected = true;
+            
+            // Trigger sparkle effect at collectible position
+            ParticleSystem.createSparkle(
+                collectible.x + collectible.width / 2,
+                collectible.y + collectible.height / 2
+            );
+            
+            const previousHighScore = game.highScore;
             game.score += 100;
+            
+            // Check and update high score
+            if (ScoreManager.isNewHighScore(game.score)) {
+                game.highScore = game.score;
+                ScoreManager.updateHighScore(game.score);
+                
+                // Trigger confetti effect on new high score
+                if (game.score > previousHighScore) {
+                    ParticleSystem.createConfetti();
+                }
+            }
+            
             updateHUD();
         }
     });
@@ -252,6 +493,10 @@ function update() {
     game.camera.targetX = player.x - config.canvas.width / 3;
     if (game.camera.targetX < 0) game.camera.targetX = 0;
     game.camera.x += (game.camera.targetX - game.camera.x) * config.camera.smoothing;
+    
+    // Update particle system
+    ParticleSystem.update();
+    ParticleSystem.cleanup();
 }
 
 // Collision Detection
@@ -296,6 +541,9 @@ function render() {
             drawStar(game.ctx, collectible.x + collectible.width / 2, collectible.y + collectible.height / 2, 5, 12, 6);
         }
     });
+    
+    // Draw particles (context is already translated, so pass 0 for camera offset)
+    ParticleSystem.render(game.ctx, 0);
 
     // Draw player
     if (player.image.complete) {
@@ -353,6 +601,7 @@ function updateHUD() {
     document.getElementById('score').textContent = game.score;
     document.getElementById('lives').textContent = game.lives;
     document.getElementById('level').textContent = game.level;
+    document.getElementById('highScore').textContent = game.highScore;
 }
 
 // Lose Life
@@ -376,6 +625,14 @@ function loseLife() {
 // Game Over
 function gameOver() {
     game.isRunning = false;
+    
+    // Save score and update high score if needed
+    if (ScoreManager.isNewHighScore(game.score)) {
+        game.highScore = game.score;
+        ScoreManager.updateHighScore(game.score);
+        updateHUD();
+    }
+    
     document.getElementById('finalScore').textContent = game.score;
     document.getElementById('gameOver').classList.remove('hidden');
 }
