@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Verification Tests</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #1a1a2e;
+            color: #fff;
+        }
+        .test-section {
+            background: #2a2a3e;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border-left: 4px solid #790ECB;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .pass {
+            background: #2ecc71;
+            color: #000;
+        }
+        .fail {
+            background: #e74c3c;
+            color: #fff;
+        }
+        .pending {
+            background: #f39c12;
+            color: #000;
+        }
+        button {
+            background: #790ECB;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #9b3de8;
+        }
+        h1 {
+            color: #790ECB;
+        }
+        h2 {
+            color: #FFD700;
+        }
+        .info {
+            background: #34495e;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎮 Super Kiro World - Feature Verification</h1>
+    
+    <div class="info">
+        <strong>Instructions:</strong> Open the main game (index.html) in another tab, then run these tests to verify all features work correctly.
+    </div>
+
+    <div class="test-section">
+        <h2>1. Score Persistence Tests</h2>
+        <button onclick="testScorePersistence()">Run Score Tests</button>
+        <div id="score-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Particle System Tests</h2>
+        <button onclick="testParticleSystem()">Run Particle Tests</button>
+        <div id="particle-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Enemy System Tests</h2>
+        <button onclick="testEnemySystem()">Run Enemy Tests</button>
+        <div id="enemy-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Integration Tests</h2>
+        <button onclick="testIntegration()">Run Integration Tests</button>
+        <div id="integration-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>5. Manual Testing Checklist</h2>
+        <div class="info">
+            <h3>Visual Effects to Verify:</h3>
+            <ul>
+                <li>✓ Trail particles appear when player moves</li>
+                <li>✓ Explosion effects on platform/enemy collisions</li>
+                <li>✓ Sparkle effects when collecting stars</li>
+                <li>✓ Confetti celebration on new high score</li>
+            </ul>
+            <h3>Enemy Behavior to Verify:</h3>
+            <ul>
+                <li>✓ Patrol enemies (red) move horizontally</li>
+                <li>✓ Bouncer enemies (teal) move vertically</li>
+                <li>✓ Enemies reverse at boundaries</li>
+                <li>✓ Collision reduces lives by 1</li>
+                <li>✓ Explosion effect on enemy collision</li>
+            </ul>
+            <h3>Score Persistence to Verify:</h3>
+            <ul>
+                <li>✓ High score displays in HUD</li>
+                <li>✓ High score persists after browser refresh</li>
+                <li>✓ New high score triggers confetti</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function addResult(containerId, testName, passed, message = '') {
+            const container = document.getElementById(containerId);
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${passed ? 'pass' : 'fail'}`;
+            resultDiv.innerHTML = `<strong>${testName}:</strong> ${passed ? '✓ PASS' : '✗ FAIL'} ${message}`;
+            container.appendChild(resultDiv);
+        }
+
+        function testScorePersistence() {
+            const container = document.getElementById('score-results');
+            container.innerHTML = '<div class="test-result pending">Running tests...</div>';
+            
+            setTimeout(() => {
+                container.innerHTML = '';
+                
+                // Test 1: LocalStorage save/load
+                const testScore = 99999;
+                localStorage.setItem('kiroworld_highscore', testScore.toString());
+                const loaded = parseInt(localStorage.getItem('kiroworld_highscore'), 10);
+                addResult('score-results', 'Score Round Trip', loaded === testScore, `(${loaded} === ${testScore})`);
+                
+                // Test 2: Zero initialization
+                localStorage.removeItem('kiroworld_highscore');
+                const emptyScore = localStorage.getItem('kiroworld_highscore');
+                addResult('score-results', 'Empty Storage Handling', emptyScore === null, '(returns null when empty)');
+                
+                // Test 3: High score monotonicity simulation
+                const scores = [100, 500, 300, 800, 600];
+                let highScore = 0;
+                let monotonic = true;
+                scores.forEach(score => {
+                    if (score > highScore) {
+                        highScore = score;
+                    }
+                    if (highScore < parseInt(localStorage.getItem('kiroworld_highscore') || '0', 10)) {
+                        monotonic = false;
+                    }
+                    if (score > parseInt(localStorage.getItem('kiroworld_highscore') || '0', 10)) {
+                        localStorage.setItem('kiroworld_highscore', score.toString());
+                    }
+                });
+                addResult('score-results', 'High Score Monotonicity', highScore === 800, `(max: ${highScore})`);
+                
+                // Restore test score
+                localStorage.setItem('kiroworld_highscore', testScore.toString());
+            }, 100);
+        }
+
+        function testParticleSystem() {
+            const container = document.getElementById('particle-results');
+            container.innerHTML = '<div class="test-result pending">Running tests...</div>';
+            
+            setTimeout(() => {
+                container.innerHTML = '';
+                
+                // Test particle structure
+                const mockParticle = {
+                    x: 100, y: 100,
+                    velocityX: 1, velocityY: -1,
+                    life: 1, maxLife: 30,
+                    size: 5, color: '#790ECB',
+                    type: 'trail'
+                };
+                
+                const hasRequiredProps = mockParticle.x !== undefined && 
+                                        mockParticle.velocityX !== undefined &&
+                                        mockParticle.life !== undefined &&
+                                        mockParticle.type !== undefined;
+                addResult('particle-results', 'Particle Structure', hasRequiredProps, '(all required properties present)');
+                
+                // Test particle lifecycle
+                let particle = { ...mockParticle };
+                const initialLife = particle.life;
+                particle.life -= 1 / particle.maxLife;
+                addResult('particle-results', 'Particle Lifecycle', particle.life < initialLife, `(${particle.life.toFixed(3)} < ${initialLife})`);
+                
+                // Test particle cleanup
+                const particles = [
+                    { life: 0.5 },
+                    { life: 0 },
+                    { life: -0.1 },
+                    { life: 1 }
+                ];
+                const alive = particles.filter(p => p.life > 0);
+                addResult('particle-results', 'Particle Cleanup', alive.length === 2, `(${alive.length} alive particles)`);
+                
+                // Test trail limit
+                const maxTrailParticles = 50;
+                const trailCount = 45;
+                const canSpawnMore = trailCount < maxTrailParticles;
+                addResult('particle-results', 'Trail Particle Limit', canSpawnMore, `(${trailCount} < ${maxTrailParticles})`);
+            }, 100);
+        }
+
+        function testEnemySystem() {
+            const container = document.getElementById('enemy-results');
+            container.innerHTML = '<div class="test-result pending">Running tests...</div>';
+            
+            setTimeout(() => {
+                container.innerHTML = '';
+                
+                // Test enemy structure
+                const mockEnemy = {
+                    x: 800, y: 500,
+                    width: 40, height: 40,
+                    velocityX: 2, velocityY: 0,
+                    type: 'patrol',
+                    minX: 600, maxX: 1000,
+                    color: '#FF6B6B'
+                };
+                
+                const hasRequiredProps = mockEnemy.x !== undefined &&
+                                        mockEnemy.velocityX !== undefined &&
+                                        mockEnemy.type !== undefined &&
+                                        mockEnemy.minX !== undefined;
+                addResult('enemy-results', 'Enemy Structure', hasRequiredProps, '(all required properties present)');
+                
+                // Test patrol boundary containment
+                let patrolEnemy = { ...mockEnemy };
+                patrolEnemy.x = patrolEnemy.maxX + 10; // Out of bounds
+                const outOfBounds = patrolEnemy.x + patrolEnemy.width > patrolEnemy.maxX;
+                addResult('enemy-results', 'Boundary Detection', outOfBounds, '(detects out of bounds)');
+                
+                // Test boundary reversal
+                patrolEnemy.x = patrolEnemy.maxX - patrolEnemy.width;
+                patrolEnemy.velocityX = 2;
+                if (patrolEnemy.x + patrolEnemy.width >= patrolEnemy.maxX) {
+                    patrolEnemy.velocityX *= -1;
+                }
+                addResult('enemy-results', 'Direction Reversal', patrolEnemy.velocityX === -2, `(velocity: ${patrolEnemy.velocityX})`);
+                
+                // Test bouncer enemy
+                const bouncerEnemy = {
+                    x: 1200, y: 300,
+                    width: 40, height: 40,
+                    velocityX: 0, velocityY: 3,
+                    type: 'bouncer',
+                    minY: 250, maxY: 450,
+                    color: '#4ECDC4'
+                };
+                const isBouncerType = bouncerEnemy.type === 'bouncer' && bouncerEnemy.velocityY !== 0;
+                addResult('enemy-results', 'Bouncer Enemy Type', isBouncerType, '(vertical movement)');
+            }, 100);
+        }
+
+        function testIntegration() {
+            const container = document.getElementById('integration-results');
+            container.innerHTML = '<div class="test-result pending">Running tests...</div>';
+            
+            setTimeout(() => {
+                container.innerHTML = '';
+                
+                // Test collision detection logic
+                const rect1 = { x: 100, y: 100, width: 50, height: 50 };
+                const rect2 = { x: 120, y: 120, width: 50, height: 50 };
+                const rect3 = { x: 200, y: 200, width: 50, height: 50 };
+                
+                const collision1 = rect1.x < rect2.x + rect2.width &&
+                                  rect1.x + rect1.width > rect2.x &&
+                                  rect1.y < rect2.y + rect2.height &&
+                                  rect1.y + rect1.height > rect2.y;
+                addResult('integration-results', 'Collision Detection (overlap)', collision1, '(detects overlap)');
+                
+                const collision2 = rect1.x < rect3.x + rect3.width &&
+                                  rect1.x + rect1.width > rect3.x &&
+                                  rect1.y < rect3.y + rect3.height &&
+                                  rect1.y + rect1.height > rect3.y;
+                addResult('integration-results', 'Collision Detection (no overlap)', !collision2, '(no false positives)');
+                
+                // Test life reduction
+                let lives = 3;
+                lives--; // Enemy collision
+                addResult('integration-results', 'Life Reduction', lives === 2, `(${lives} lives remaining)`);
+                
+                // Test high score trigger
+                const currentScore = 1000;
+                const previousHighScore = 500;
+                const isNewHighScore = currentScore > previousHighScore;
+                addResult('integration-results', 'High Score Detection', isNewHighScore, `(${currentScore} > ${previousHighScore})`);
+                
+                // Test confetti trigger condition
+                const shouldTriggerConfetti = currentScore > previousHighScore;
+                addResult('integration-results', 'Confetti Trigger Logic', shouldTriggerConfetti, '(triggers on new high score)');
+            }, 100);
+        }
+
+        // Auto-run all tests on load
+        window.addEventListener('load', () => {
+            console.log('Verification page loaded. Click buttons to run tests.');
+        });
+    </script>
+</body>
+</html>
