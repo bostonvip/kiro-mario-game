@@ -54,6 +54,132 @@ const ScoreManager = {
     }
 };
 
+// Enemy System Module
+const EnemySystem = {
+    enemies: [],
+    
+    // Spawn enemies for a level
+    spawnEnemies(levelNum) {
+        this.enemies = [];
+        
+        // Level 1 and beyond - spawn patrol and bouncer enemies
+        const enemyConfigs = [
+            // Patrol enemies (horizontal movement)
+            { x: 800, y: 500, type: 'patrol', minX: 600, maxX: 1000 },
+            { x: 1500, y: 300, type: 'patrol', minX: 1350, maxX: 1750 },
+            { x: 2200, y: 500, type: 'patrol', minX: 2000, maxX: 2400 },
+            { x: 3000, y: 330, type: 'patrol', minX: 2850, maxX: 3200 },
+            { x: 3800, y: 500, type: 'patrol', minX: 3600, maxX: 4000 },
+            
+            // Bouncer enemies (vertical movement)
+            { x: 1200, y: 300, type: 'bouncer', minY: 250, maxY: 450 },
+            { x: 2000, y: 250, type: 'bouncer', minY: 200, maxY: 400 },
+            { x: 2900, y: 200, type: 'bouncer', minY: 150, maxY: 350 },
+            { x: 3500, y: 250, type: 'bouncer', minY: 200, maxY: 400 }
+        ];
+        
+        enemyConfigs.forEach(config => {
+            const enemy = {
+                x: config.x,
+                y: config.y,
+                width: 40,
+                height: 40,
+                velocityX: 0,
+                velocityY: 0,
+                type: config.type,
+                color: config.type === 'patrol' ? '#FF6B6B' : '#4ECDC4'
+            };
+            
+            if (config.type === 'patrol') {
+                enemy.velocityX = 2; // Patrol speed
+                enemy.minX = config.minX;
+                enemy.maxX = config.maxX;
+            } else if (config.type === 'bouncer') {
+                enemy.velocityY = 3; // Bouncer speed
+                enemy.minY = config.minY;
+                enemy.maxY = config.maxY;
+            }
+            
+            this.enemies.push(enemy);
+        });
+    },
+    
+    // Update all enemies
+    update() {
+        this.enemies.forEach(enemy => {
+            if (enemy.type === 'patrol') {
+                // Horizontal patrol movement
+                enemy.x += enemy.velocityX;
+                
+                // Reverse at boundaries
+                if (enemy.x <= enemy.minX || enemy.x + enemy.width >= enemy.maxX) {
+                    enemy.velocityX *= -1;
+                    // Clamp position to boundaries
+                    if (enemy.x < enemy.minX) enemy.x = enemy.minX;
+                    if (enemy.x + enemy.width > enemy.maxX) enemy.x = enemy.maxX - enemy.width;
+                }
+            } else if (enemy.type === 'bouncer') {
+                // Vertical bounce movement
+                enemy.y += enemy.velocityY;
+                
+                // Reverse at boundaries
+                if (enemy.y <= enemy.minY || enemy.y + enemy.height >= enemy.maxY) {
+                    enemy.velocityY *= -1;
+                    // Clamp position to boundaries
+                    if (enemy.y < enemy.minY) enemy.y = enemy.minY;
+                    if (enemy.y + enemy.height > enemy.maxY) enemy.y = enemy.maxY - enemy.height;
+                }
+            }
+        });
+    },
+    
+    // Render all enemies
+    render(ctx, cameraX) {
+        this.enemies.forEach(enemy => {
+            // Draw enemy body
+            ctx.fillStyle = enemy.color;
+            ctx.fillRect(enemy.x - cameraX, enemy.y, enemy.width, enemy.height);
+            
+            // Add border for better visibility
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(enemy.x - cameraX, enemy.y, enemy.width, enemy.height);
+            
+            // Draw eyes to make it look more like an enemy
+            ctx.fillStyle = '#ffffff';
+            const eyeSize = 6;
+            const eyeY = enemy.y + 12;
+            ctx.beginPath();
+            ctx.arc(enemy.x - cameraX + 12, eyeY, eyeSize, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(enemy.x - cameraX + 28, eyeY, eyeSize, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw pupils
+            ctx.fillStyle = '#000000';
+            const pupilSize = 3;
+            ctx.beginPath();
+            ctx.arc(enemy.x - cameraX + 12, eyeY, pupilSize, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(enemy.x - cameraX + 28, eyeY, pupilSize, 0, Math.PI * 2);
+            ctx.fill();
+        });
+    },
+    
+    // Check collision with player
+    checkPlayerCollision(player) {
+        for (let i = 0; i < this.enemies.length; i++) {
+            const enemy = this.enemies[i];
+            if (checkCollision(player, enemy)) {
+                return enemy;
+            }
+        }
+        return null;
+    }
+};
+
 // Particle System Module
 const ParticleSystem = {
     particles: [],
@@ -213,6 +339,7 @@ const game = {
     camera: { x: 0, targetX: 0 },
     highScore: 0,
     particles: [],
+    enemies: [],
     lastTrailSpawn: 0,
     frameCount: 0
 };
@@ -283,6 +410,9 @@ function loadLevel(levelNum) {
     player.velocityY = 0;
     game.camera.x = 0;
     game.camera.targetX = 0;
+    
+    // Spawn enemies for this level
+    EnemySystem.spawnEnemies(levelNum);
 
     // Ground platforms
     for (let i = 0; i < 30; i++) {
@@ -494,6 +624,9 @@ function update() {
     if (game.camera.targetX < 0) game.camera.targetX = 0;
     game.camera.x += (game.camera.targetX - game.camera.x) * config.camera.smoothing;
     
+    // Update enemy system
+    EnemySystem.update();
+    
     // Update particle system
     ParticleSystem.update();
     ParticleSystem.cleanup();
@@ -541,6 +674,9 @@ function render() {
             drawStar(game.ctx, collectible.x + collectible.width / 2, collectible.y + collectible.height / 2, 5, 12, 6);
         }
     });
+    
+    // Draw enemies
+    EnemySystem.render(game.ctx, 0);
     
     // Draw particles (context is already translated, so pass 0 for camera offset)
     ParticleSystem.render(game.ctx, 0);
