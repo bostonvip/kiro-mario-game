@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Kiro World</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="hud">
+            <div class="hud-item">Score: <span id="score">0</span></div>
+            <div class="hud-item">Lives: <span id="lives">3</span></div>
+            <div class="hud-item">Level: <span id="level">1</span></div>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+        <div id="gameOver" class="overlay hidden">
+            <h1>Game Over!</h1>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <button id="restartBtn">Restart Game</button>
+        </div>
+        <div id="levelComplete" class="overlay hidden">
+            <h1>Level Complete!</h1>
+            <p>Score: <span id="levelScore">0</span></p>
+            <button id="nextLevelBtn">Next Level</button>
+        </div>
+    </div>
+    <div class="controls">
+        <p>Controls: Arrow Keys or A/D to move, Space or W to jump</p>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>
