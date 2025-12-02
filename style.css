@@ -45,6 +45,23 @@ canvas {
     color: #790ECB;
 }
 
+.music-btn {
+    background: #2a2a3e;
+    color: white;
+    border: 2px solid #790ECB;
+    padding: 5px 12px;
+    font-size: 14px;
+    font-family: 'Courier New', monospace;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.music-btn:hover {
+    background: #790ECB;
+    transform: scale(1.05);
+}
+
 .overlay {
     position: absolute;
     top: 50%;

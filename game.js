@@ -17,6 +17,288 @@ const config = {
     }
 };
 
+// 8-Bit Music System
+const MusicSystem = {
+    audioContext: null,
+    isPlaying: false,
+    isMuted: false,
+    masterGain: null,
+    currentNoteIndex: 0,
+    tempo: 140, // BPM
+    scheduledTime: 0,
+    timerID: null,
+    
+    // Simple cheerful 8-bit melody (note frequencies in Hz)
+    // Using a pentatonic scale for a pleasant, non-annoying sound
+    melody: [
+        { note: 523.25, duration: 0.15 },  // C5
+        { note: 587.33, duration: 0.15 },  // D5
+        { note: 659.25, duration: 0.15 },  // E5
+        { note: 783.99, duration: 0.3 },   // G5
+        { note: 659.25, duration: 0.15 },  // E5
+        { note: 587.33, duration: 0.15 },  // D5
+        { note: 523.25, duration: 0.3 },   // C5
+        { note: 0, duration: 0.15 },       // Rest
+        { note: 392.00, duration: 0.15 },  // G4
+        { note: 440.00, duration: 0.15 },  // A4
+        { note: 523.25, duration: 0.15 },  // C5
+        { note: 587.33, duration: 0.3 },   // D5
+        { note: 523.25, duration: 0.15 },  // C5
+        { note: 440.00, duration: 0.15 },  // A4
+        { note: 392.00, duration: 0.3 },   // G4
+        { note: 0, duration: 0.15 },       // Rest
+    ],
+    
+    // Bass line for depth
+    bassLine: [
+        { note: 130.81, duration: 0.3 },   // C3
+        { note: 0, duration: 0.15 },       // Rest
+        { note: 130.81, duration: 0.15 },  // C3
+        { note: 146.83, duration: 0.3 },   // D3
+        { note: 0, duration: 0.15 },       // Rest
+        { note: 146.83, duration: 0.15 },  // D3
+        { note: 164.81, duration: 0.3 },   // E3
+        { note: 0, duration: 0.15 },       // Rest
+        { note: 196.00, duration: 0.3 },   // G3
+        { note: 0, duration: 0.15 },       // Rest
+        { note: 164.81, duration: 0.15 },  // E3
+        { note: 146.83, duration: 0.3 },   // D3
+        { note: 0, duration: 0.15 },       // Rest
+        { note: 130.81, duration: 0.3 },   // C3
+        { note: 0, duration: 0.15 },       // Rest
+        { note: 0, duration: 0.15 },       // Rest
+    ],
+    
+    init() {
+        try {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            this.masterGain = this.audioContext.createGain();
+            this.masterGain.connect(this.audioContext.destination);
+            this.masterGain.gain.value = 0.15; // Keep volume low and pleasant
+            console.log('Music system initialized');
+        } catch (e) {
+            console.warn('Web Audio API not supported:', e);
+        }
+    },
+    
+    // Create an 8-bit style square wave sound
+    playNote(frequency, startTime, duration, type = 'square', volume = 0.3) {
+        if (!this.audioContext || frequency === 0) return;
+        
+        const oscillator = this.audioContext.createOscillator();
+        const gainNode = this.audioContext.createGain();
+        
+        oscillator.type = type;
+        oscillator.frequency.value = frequency;
+        
+        // Envelope for softer attack/release (less harsh)
+        gainNode.gain.setValueAtTime(0, startTime);
+        gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.02);
+        gainNode.gain.setValueAtTime(volume, startTime + duration - 0.05);
+        gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(this.masterGain);
+        
+        oscillator.start(startTime);
+        oscillator.stop(startTime + duration);
+    },
+    
+    // Schedule the next batch of notes
+    scheduleNotes() {
+        if (!this.isPlaying || !this.audioContext) return;
+        
+        const currentTime = this.audioContext.currentTime;
+        
+        // Schedule notes ahead of time for smooth playback
+        while (this.scheduledTime < currentTime + 0.2) {
+            const melodyNote = this.melody[this.currentNoteIndex % this.melody.length];
+            const bassNote = this.bassLine[this.currentNoteIndex % this.bassLine.length];
+            
+            // Play melody (square wave, higher pitch)
+            if (melodyNote.note > 0) {
+                this.playNote(melodyNote.note, this.scheduledTime, melodyNote.duration, 'square', 0.2);
+            }
+            
+            // Play bass (triangle wave, lower pitch, quieter)
+            if (bassNote.note > 0) {
+                this.playNote(bassNote.note, this.scheduledTime, bassNote.duration, 'triangle', 0.15);
+            }
+            
+            this.scheduledTime += melodyNote.duration;
+            this.currentNoteIndex++;
+        }
+    },
+    
+    start() {
+        if (!this.audioContext) {
+            this.init();
+        }
+        
+        if (!this.audioContext) return;
+        
+        // Resume audio context (required after user interaction)
+        if (this.audioContext.state === 'suspended') {
+            this.audioContext.resume();
+        }
+        
+        if (this.isPlaying) return;
+        
+        this.isPlaying = true;
+        this.scheduledTime = this.audioContext.currentTime;
+        this.currentNoteIndex = 0;
+        
+        // Schedule notes at regular intervals
+        const scheduler = () => {
+            if (this.isPlaying) {
+                this.scheduleNotes();
+                this.timerID = setTimeout(scheduler, 50);
+            }
+        };
+        scheduler();
+        
+        console.log('Music started');
+    },
+    
+    stop() {
+        this.isPlaying = false;
+        if (this.timerID) {
+            clearTimeout(this.timerID);
+            this.timerID = null;
+        }
+        console.log('Music stopped');
+    },
+    
+    toggle() {
+        if (this.isPlaying) {
+            this.stop();
+        } else {
+            this.start();
+        }
+        return this.isPlaying;
+    },
+    
+    setVolume(value) {
+        if (this.masterGain) {
+            this.masterGain.gain.value = Math.max(0, Math.min(1, value));
+        }
+    }
+};
+
+// Sound Effects System (separate from music)
+const SoundFX = {
+    audioContext: null,
+    lastPlayTime: {},
+    cooldown: 100, // Minimum ms between same sound
+    
+    init() {
+        if (!this.audioContext) {
+            this.audioContext = MusicSystem.audioContext || new (window.AudioContext || window.webkitAudioContext)();
+        }
+    },
+    
+    // Prevent sounds from playing too rapidly
+    canPlay(soundName) {
+        const now = Date.now();
+        if (this.lastPlayTime[soundName] && now - this.lastPlayTime[soundName] < this.cooldown) {
+            return false;
+        }
+        this.lastPlayTime[soundName] = now;
+        return true;
+    },
+    
+    // Jump sound - quick pop (no sweep)
+    playJump() {
+        if (!this.audioContext) this.init();
+        if (!this.audioContext || !this.canPlay('jump')) return;
+        
+        const osc = this.audioContext.createOscillator();
+        const gain = this.audioContext.createGain();
+        
+        // Simple pop sound - fixed frequency, very short
+        osc.type = 'sine';
+        osc.frequency.value = 440; // Fixed A4 note
+        
+        gain.gain.setValueAtTime(0.08, this.audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.06);
+        
+        osc.connect(gain);
+        gain.connect(this.audioContext.destination);
+        
+        osc.start();
+        osc.stop(this.audioContext.currentTime + 0.06);
+    },
+    
+    // Collect sound - simple ding
+    playCollect() {
+        if (!this.audioContext) this.init();
+        if (!this.audioContext || !this.canPlay('collect')) return;
+        
+        const osc = this.audioContext.createOscillator();
+        const gain = this.audioContext.createGain();
+        
+        // Simple high-pitched ding - no frequency changes
+        osc.type = 'sine';
+        osc.frequency.value = 880; // Fixed A5 note
+        
+        gain.gain.setValueAtTime(0.1, this.audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.1);
+        
+        osc.connect(gain);
+        gain.connect(this.audioContext.destination);
+        
+        osc.start();
+        osc.stop(this.audioContext.currentTime + 0.1);
+    },
+    
+    // Hit/damage sound - short thump (no siren!)
+    playHit() {
+        if (!this.audioContext) this.init();
+        if (!this.audioContext || !this.canPlay('hit')) return;
+        
+        const osc = this.audioContext.createOscillator();
+        const gain = this.audioContext.createGain();
+        
+        // Use a simple low-frequency thump instead of descending tone
+        osc.type = 'sine';
+        osc.frequency.value = 80; // Fixed low frequency, no sweep
+        
+        gain.gain.setValueAtTime(0.15, this.audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.08);
+        
+        osc.connect(gain);
+        gain.connect(this.audioContext.destination);
+        
+        osc.start();
+        osc.stop(this.audioContext.currentTime + 0.08);
+    },
+    
+    // Level complete fanfare
+    playLevelComplete() {
+        if (!this.audioContext) this.init();
+        if (!this.audioContext || !this.canPlay('levelComplete')) return;
+        
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        notes.forEach((freq, i) => {
+            const osc = this.audioContext.createOscillator();
+            const gain = this.audioContext.createGain();
+            
+            osc.type = 'square';
+            osc.frequency.value = freq;
+            
+            const startTime = this.audioContext.currentTime + i * 0.15;
+            gain.gain.setValueAtTime(0.15, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.3);
+            
+            osc.connect(gain);
+            gain.connect(this.audioContext.destination);
+            
+            osc.start(startTime);
+            osc.stop(startTime + 0.3);
+        });
+    }
+};
+
 // Score Manager Module
 const ScoreManager = {
     STORAGE_KEY: 'kiroworld_highscore',
@@ -384,6 +666,11 @@ function init() {
         if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
             e.preventDefault();
         }
+        // Toggle music with M key
+        if (e.code === 'KeyM') {
+            const isPlaying = MusicSystem.toggle();
+            updateMusicButton(isPlaying);
+        }
     });
     
     document.addEventListener('keyup', (e) => {
@@ -392,12 +679,32 @@ function init() {
 
     document.getElementById('restartBtn').addEventListener('click', restartGame);
     document.getElementById('nextLevelBtn').addEventListener('click', nextLevel);
+    
+    // Setup music button
+    const musicBtn = document.getElementById('musicBtn');
+    if (musicBtn) {
+        musicBtn.addEventListener('click', () => {
+            const isPlaying = MusicSystem.toggle();
+            updateMusicButton(isPlaying);
+        });
+    }
 
     // Start game
     loadLevel(game.level);
     game.isRunning = true;
     updateHUD();
     gameLoop();
+    
+    // Initialize music system (will start on first user interaction)
+    MusicSystem.init();
+}
+
+// Update music button text
+function updateMusicButton(isPlaying) {
+    const musicBtn = document.getElementById('musicBtn');
+    if (musicBtn) {
+        musicBtn.textContent = isPlaying ? '🔊 Music' : '🔇 Music';
+    }
 }
 
 // Load Level
@@ -514,6 +821,7 @@ function update() {
     if ((keys['Space'] || keys['ArrowUp'] || keys['KeyW']) && player.isGrounded) {
         player.velocityY = -config.player.jumpPower;
         player.isGrounded = false;
+        SoundFX.playJump();
     }
 
     // Apply gravity
@@ -587,6 +895,9 @@ function update() {
         if (!collectible.collected && checkCollision(player, collectible)) {
             collectible.collected = true;
             
+            // Play collect sound
+            SoundFX.playCollect();
+            
             // Trigger sparkle effect at collectible position
             ParticleSystem.createSparkle(
                 collectible.x + collectible.width / 2,
@@ -614,6 +925,9 @@ function update() {
     // Check enemy collisions
     const collidedEnemy = EnemySystem.checkPlayerCollision(player);
     if (collidedEnemy) {
+        // Play hit sound
+        SoundFX.playHit();
+        
         // Trigger explosion effect at collision point
         ParticleSystem.createExplosion(
             player.x + player.width / 2,
@@ -790,6 +1104,7 @@ function gameOver() {
 // Level Complete
 function levelComplete() {
     game.isRunning = false;
+    SoundFX.playLevelComplete();
     document.getElementById('levelScore').textContent = game.score;
     document.getElementById('levelComplete').classList.remove('hidden');
 }

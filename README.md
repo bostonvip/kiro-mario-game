@@ -22,6 +22,14 @@ A browser-based 2D platformer game featuring side-scrolling gameplay, particle e
 - **Confetti celebration** for new high scores
 - **Kiro brand colors** throughout (#790ECB purple, #FFD700 gold)
 
+### 🎵 Audio
+- **8-bit background music** - Pleasant, non-intrusive chiptune melody
+- **Jump sound** - Quick ascending tone
+- **Collect sound** - Cheerful ding when collecting stars
+- **Hit sound** - Low thud on enemy collision
+- **Level complete fanfare** - Celebratory chord progression
+- **Toggle music** with M key or button click
+
 ### 👾 Enemy System
 - **Patrol enemies** (red) - Move horizontally between boundaries
 - **Bouncer enemies** (teal) - Move vertically with bounce patterns
@@ -59,6 +67,7 @@ open index.html
 |-----|--------|
 | **Arrow Keys** or **A/D** | Move left/right |
 | **Space** or **W** or **↑** | Jump |
+| **M** | Toggle background music |
 
 ---
 
@@ -343,9 +352,10 @@ Having issues? Here's how to get help:
 - [x] High score tracking
 - [x] Multiple levels
 - [x] Lives system
+- [x] 8-bit background music
+- [x] Sound effects (jump, collect, hit, level complete)
 
 ### Future Enhancements 🚀
-- [ ] Sound effects and background music
 - [ ] Additional enemy types
 - [ ] Power-ups (double jump, invincibility, etc.)
 - [ ] Boss battles
