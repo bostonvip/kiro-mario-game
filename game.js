@@ -611,6 +611,20 @@ function update() {
         }
     });
 
+    // Check enemy collisions
+    const collidedEnemy = EnemySystem.checkPlayerCollision(player);
+    if (collidedEnemy) {
+        // Trigger explosion effect at collision point
+        ParticleSystem.createExplosion(
+            player.x + player.width / 2,
+            player.y + player.height / 2,
+            15
+        );
+        
+        // Decrease player lives and respawn
+        loseLife();
+    }
+
     // Check if player fell off
     if (player.y > config.canvas.height + 100) {
         loseLife();
